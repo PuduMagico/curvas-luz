@@ -23,11 +23,11 @@ def unpickle(filename):
 
 def batch_to_bc01(batch):
     ''' Converts CIFAR sample to bc01 tensor'''
-    return batch.reshape([-1, 1, 1, 200])
+    return batch.reshape([-1, 1, 200])
 
 def batch_to_b01c(batch):
     ''' Converts CIFAR sample to b01c tensor'''
-    return batch_to_bc01(batch).transpose(0,2,3,1)
+    return batch_to_bc01(batch).transpose(0,2,1)
 
 def labels_to_one_hot(labels):
     ''' Converts list of integers to numpy 2D array with one-hot encoding'''
@@ -46,7 +46,7 @@ class CIFAR10:
         train_labels = []
         test_data = []
         test_labels = []
-        dict = {}
+        self.dict = {}
         #file.readline()
         for line in file:
             line_data = []
@@ -54,16 +54,16 @@ class CIFAR10:
             data = line.split(';')[0][1:-1].split(',')
             for x in data:
                 line_data.append(float(x))
-            dict[subclass] = dict.get(subclass,[])+line_data
-        labels = list(dict.keys())
-        for key in dict.keys():
-            a = random.sample(range(int(len(dict[key])/200)),int(len(dict[key])/200*.1))
-            for value in range(int(len(dict[key])/200)):
+            self.dict[subclass] = self.dict.get(subclass,[])+line_data
+        labels = list(self.dict.keys())
+        for key in self.dict.keys():
+            a = random.sample(range(int(len(self.dict[key])/200)),int(len(self.dict[key])/200*.1))
+            for value in range(int(len(self.dict[key])/200)):
                 if value in a:
                     test_labels = test_labels + [labels.index(key)]
-                    test_data.append(dict[key][200*value:200*(value+1)])
+                    test_data.append(self.dict[key][200*value:200*(value+1)])
                 else:
-                    train_data.append(dict[key][200*value:200*(value+1)])
+                    train_data.append(self.dict[key][200*value:200*(value+1)])
                     train_labels = train_labels + [labels.index(key)]
 
         self.train_data = np.asarray(train_data,dtype=np.float32)
@@ -71,7 +71,7 @@ class CIFAR10:
 
         self.test_data = np.asarray(test_data, dtype=np.float32)
         self.test_labels = np.asarray(test_labels, dtype = np.int32)
-
+        self.labels = labels
         
         # Training and Test set
         #self.train_data,self.train_labels,self.test_data,self.test_labels = self.import_data('database3.csv')
@@ -82,12 +82,11 @@ class CIFAR10:
             self.train_data, self.train_labels, test_size=validation_proportion, random_state=1)
                 
         # Normalize data
-        mean = (self.train_data.mean(axis=0) + self.test_data.mean(axis = 0))/2
-        std = (self.train_data.std(axis=0) + self.test_data.std(axis=0))/2
-        self.train_data = (self.train_data-mean)/std
-        self.validation_data = (self.validation_data-mean)/std
-        self.test_data = (self.test_data-mean)/std
-
+        self.mean = self.train_data.mean(axis=0)
+        self.std = self.train_data.std(axis=0)
+        self.train_data = (self.train_data - self.std)/self.mean
+        self.validation_data = (self.validation_data - self.std)/self.mean
+        self.test_data = (self.test_data - self.std)/self.mean
         # Converting to b01c and one-hot encoding
         self.train_data = batch_to_b01c(self.train_data)
         self.validation_data = batch_to_b01c(self.validation_data)
@@ -98,7 +97,15 @@ class CIFAR10:
 
         np.random.seed(seed=1)
         self.augment_data = augment_data
-            
+        #p = np.random.permutation(len(self.train_data))
+        #self.train_data=self.train_data[p]
+        #self.train_labels = self.train_labels[p]
+        #p = np.random.permutation(len(self.test_data))
+        #self.test_data = self.test_data[p]
+        #self.test_labels = self.test_labels[p]
+        #p = np.random.permutation(len(self.validation_data))
+        #self.validation_data = self.validation_data[p]
+        #self.validation_labels = self.validation_labels[p]
         # Batching & epochs
         self.batch_size = batch_size
         self.n_batches = len(self.train_labels)//self.batch_size
